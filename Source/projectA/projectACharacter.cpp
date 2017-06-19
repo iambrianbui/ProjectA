@@ -3,6 +3,7 @@
 #include "projectA.h"
 #include "Kismet/HeadMountedDisplayFunctionLibrary.h"
 #include "projectACharacter.h"
+#include "AbilitySystemComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AprojectACharacter
@@ -38,6 +39,9 @@ AprojectACharacter::AprojectACharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	// Our ability system component.
+	AbilitySystem = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystem"));
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 }
@@ -69,6 +73,9 @@ void AprojectACharacter::SetupPlayerInputComponent(class UInputComponent* Player
 
 	// VR headset functionality
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AprojectACharacter::OnResetVR);
+
+	//Binding ability system's ability activation to player input
+	AbilitySystem->BindAbilityActivationToInputComponent(PlayerInputComponent, FGameplayAbiliyInputBinds("ConfirmInput", "CancelInput", "AbilityInput"));
 }
 
 
@@ -125,5 +132,18 @@ void AprojectACharacter::MoveRight(float Value)
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
+	}
+}
+
+void  AprojectACharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	if (AbilitySystem)
+	{
+		if (HasAuthority() && Ability)
+		{
+			AbilitySystem->GiveAbility(FGameplayAbilitySpec(Ability.GetDefaultObject(), 1, 0));
+		}
+		AbilitySystem->InitAbilityActorInfo(this, this);
 	}
 }
